@@ -16,6 +16,7 @@
   "dependencies": {
     "@clockwyrks/particle-runtime": "file:./.vendor/packages/@clockwyrks/particle-runtime",
     "@clockwyrks/simple-2d": "file:./.vendor/engine/@clockwyrks/simple-2d",
+    "@types/node": "^26.6.5",
     "ts-essentials": "^10.2.1"
   },
   "devDependencies": {

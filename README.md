@@ -1,112 +1,54 @@
-# Volute — starter project
+# Volute
 
-This repository is the starting point for building Volute, the game the
-specification under `specs/` describes. Read `specs/overview.md` first; it says
-how the rest of the specification is organized.
+An arcade mineral puzzle inside a geothermal pump hall. Fire faceted cores into the winding train, gather three matching charges, and extract them before they reach the intake. Rejoining groups build scoring chains. Marked cores grant choke, backflow, bore, or sightline machinery. Clear five halls with three cells.
 
-The project is already wired up. It builds on the Simple 2D engine, which is
-installed as an ordinary dependency and documents itself under `engine/`; read
-that alongside the specs. What is missing is the game, and the art, effects, and
-sound it plays.
+## Run
 
-## What you own
+```sh
+npm ci
+npm run dev
+```
 
-`src/game.ts`, and any new files you add beside it.
+Open the local address Vite prints. The game runs entirely in your browser. Sound unlocks on the first key or pointer gesture.
 
-The module does not exist yet. `src/main.ts` imports `game` and `BACKGROUND`
-from it, so the project does not compile until you create it — a fresh
-workspace failing `npm run typecheck` is the starting point, not a broken seed.
+## Controls
 
-Start by declaring and exporting `VoluteState`, exactly as `specs/state.md`
-fixes it, and `VoluteDebugApi`, exactly as `specs/instrumentation.md` fixes it.
+| Action                 | Controls                                   |
+| ---------------------- | ------------------------------------------ |
+| Aim                    | Mouse, pen, touch, or Left / Right (A / D) |
+| Fire                   | Click, touch, or Space                     |
+| Swap loaded and queued | X                                          |
+| Start / dismiss ending | Enter, Space, click, or touch              |
+| Pause / resume         | P or Escape                                |
+| Mute                   | M                                          |
+| Diagnostics            | Backtick                                   |
 
-`src/game.ts` then exports `game`, a `Game<VoluteState, VoluteDebugApi>`: three
-functions over that state. `initialize` builds the state and the debug surface
-once and returns them together as `[state, debug]`; `update` takes the current
-state as a read-only view (`DeepReadonly<VoluteState>`, from `ts-essentials`)
-and returns the next state, advanced against the frame's delta time in seconds;
-and `render` is handed that next state, read-only again, and draws it. The
-engine holds the state by value and replaces it with whatever `update` returns,
-so a frame builds the next state from the current one, spreading the parts that
-change, rather than writing into it, and the type is what guarantees that
-rendering changes nothing. Split the work across new modules under `src/`
-however you like.
+Touch devices also receive the engine's on-screen controls. Each shot and swap answers a press, rather than repeating while held. Mineral glyphs distinguish the charges as well as their colors.
 
-`src/game.ts` also exports `BACKGROUND`, a CSS color string: the field
-background `src/main.ts` hands the engine as the color the canvas is cleared to
-each frame, so the letterbox bars around the field match the field itself.
+## Production
 
-The assets are yours to produce. Volute ships no art and no sound: you produce
-every sprite, sheet, particle system, and cue with the asset tools on this
-machine's `PATH`, commit the files under `public/assets/`, and load them in
-`initialize`, each image with `api.assets.loadImage` and each sound with
-`api.audio.load`, awaited so everything is decoded before the first frame.
-`specs/assets.md` is the contract, and the engine's `assets.md` and `audio.md`
-state the asset root, the path rules, and the looping cues. A produced particle
-system is played through `@clockwyrks/particle-runtime`, an installed
-dependency imported by its bare name. The asset tools are absent when the build
-is installed and rebuilt elsewhere, so the build bundles the committed files and
-invokes no tool.
+```sh
+npm run build
+npm run preview
+```
 
-The debug surface is a required deliverable. The engine returns it from
-`engine.debug` exactly as `initialize` handed it over, and that is how the game
-is driven from code, so it is present and exactly as `specs/instrumentation.md`
-specifies. Because nothing holds a writable state, its operations are written in
-the shape of `update`: a pose takes the current state and returns the next, and
-a caller applies it through `engine.apply((s) => debug.startLevel(s, 1))`; a
-reading takes the state and returns what it read, as
-`debug.snapshot(engine.state)`.
-Nothing is published to the page.
+`dist/` is a complete static site. Serve it from a root or a subdirectory; all bundled files resolve relative to the page. No service, API key, runtime asset generator, or external asset host is needed.
 
-`VoluteState` is a contract. Keep every field, under the name, type, and meaning
-`specs/state.md` gives it. You may add fields, but only for data you can rebuild
-from the declared ones: the declared fields are the whole of the authoritative
-state, and the surface's `reset` restores exactly those. Loaded images, decoded
-audio, and prepared particle systems are the one exception: `initialize` may
-hold them in a module-level table `render` reads, since they are not game state.
+## Verification
 
-Tests you write belong beside your sources as `src/**/*.test.ts`. `npm test`
-runs them in process, with coverage over `src/`. The engine's `debug.md` and
-`frame.md` show how a test stands the engine up over a `ConstantClock`, poses a
-scenario through the debug surface, and advances it a counted number of frames.
+```sh
+npm run typecheck
+npm run lint
+npm run format
+npm test
+```
 
-## What you must not edit
+The unit suite runs the real Simple 2D engine over a native canvas and counted clocks, with a Node asset/audio host. It also checks geometry, simulation, insertion, chains, machinery, pressure, progression, debug poses, inputs, and music switching. Browser validation uses the installed Playwright Chromium.
 
-- `src/main.ts`, the fixed entry point. It creates the engine over the page's
-  canvas, binds `game` to it, and runs.
-- `src/constants.ts`, every figure the specification fixes: the field and the
-  tick, the channel and its arc length, the cores and their spacing, the
-  charges, pressure, the injector, extraction and chains, the machinery table,
-  the level table, the run's figures, the screen names, the action names and
-  bindings, and the cue names. Read from it, and never restate a number it
-  already names.
-- `index.html`, the page and the canvas the engine fits the field into.
-- The toolchain: `package.json`, `tsconfig.json`, `vite.config.ts`,
-  `vitest.config.ts`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`,
-  and `.gitignore`.
-- `.vendor/` and `engine/`, the vendored libraries and the engine's documentation.
+## Implementation and assets
 
-Add dependencies to `package.json` if you genuinely need them, and commit the
-`package-lock.json`; the build is installed with `npm ci`. Leave the existing
-entries alone.
+Simple 2D owns the frame loop, canvas fit, input, asset loading, audio bus, and diagnostics. `src/game.ts` defines the immutable authoritative state and transitions; `simulation.ts` implements the 60 Hz rules; `debug.ts` supplies the state-based automation interface; `presentation.ts` draws the hall and composites the produced animations and live particle systems.
 
-## Commands
+`public/assets/` contains the finished original pixel art, individual animation frames, four particle systems, thirteen sound effects, and two eight-second music loops with portable MIDI scores. Charge-colored extraction frames are prepared from the shared authored sheet during initialization. Particle effects are simulated by `@clockwyrks/particle-runtime/canvas` at their state-held age and seed, so rendering never advances game state.
 
-- `npm run dev` serves the game with hot reload.
-- `npm run build` type-checks, then emits the static site into `dist/`.
-- `npm run preview` serves `dist/` for a final check.
-- `npm run typecheck` runs `tsc --noEmit`.
-- `npm run lint` runs ESLint.
-- `npm run format` runs Prettier in check mode.
-- `npm test` runs Vitest over `src/**/*.test.ts`, with coverage.
-
-## Before you finish
-
-- `npm run build` produces `dist/` with `index.html` at its root, and that
-  directory runs as-is on any static host, from a sub-path included.
-- `npm run typecheck`, `npm run lint`, `npm run format`, and `npm test` all
-  pass. The same four commands are run over the repository you leave behind.
-- The produced files under `public/assets/` are committed alongside your source.
-- Replace this file with the `README.md` `specs/overview.md` asks the finished
-  build to ship: what the game is, how to install it, how to run it in
-  development, how to produce the production build, and the controls.
+`tools/produce.py` records the one-time authoring process. It uses `draw`, `draw-sheet`, `particle-2d`, `sfx-synth`, `sfx-sample` with the combat-core pack, and `music` with the synthwave bank. Running it requires those development tools and Python 3; ordinary installation and production builds never run it. It regenerates committed assets and writes intermediate authoring logs under `tools/source/`. Audio and graphics are original compositions and designs authored for Volute using the provided tool banks.
